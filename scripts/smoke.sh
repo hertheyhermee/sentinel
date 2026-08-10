@@ -18,14 +18,28 @@ fail() {
   exit 1
 }
 
+# macOS ships no `timeout` by default (it is a GNU coreutils command), while
+# Linux CI runners have it. wait_until polls in pure bash so this script works
+# identically on a contributor's Mac and in GitHub Actions.
+wait_until() {
+  local description="$1" seconds="$2"
+  shift 2
+  local waited=0
+  until "$@" >/dev/null 2>&1; do
+    waited=$((waited + 2))
+    if [ "${waited}" -ge "${seconds}" ]; then
+      fail "${description} did not happen within ${seconds}s"
+    fi
+    sleep 2
+  done
+}
+
 echo "1/5 waiting for liveness"
-timeout "${TIMEOUT}" bash -c "until curl -fsS ${API}/health >/dev/null; do sleep 2; done" \
-  || fail "api never became live"
+wait_until "api liveness" "${TIMEOUT}" curl -fsS "${API}/health"
 echo "     ok"
 
 echo "2/5 waiting for readiness (postgres + redis reachable)"
-timeout "${TIMEOUT}" bash -c "until curl -fsS ${API}/ready >/dev/null; do sleep 2; done" \
-  || fail "api never became ready"
+wait_until "api readiness" "${TIMEOUT}" curl -fsS "${API}/ready"
 curl -fsS "${API}/ready" | python3 -m json.tool
 echo "     ok"
 
@@ -39,12 +53,13 @@ MONITOR_ID=$(
 echo "     created monitor ${MONITOR_ID}"
 
 echo "4/5 waiting for the worker to record a probe result"
-timeout "${TIMEOUT}" bash -c "
-  until [ \"\$(curl -fsS ${API}/api/monitors/${MONITOR_ID}/results \
-    | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')\" -gt 0 ]; do
-    sleep 2
-  done
-" || fail "no probe result appeared within ${TIMEOUT}s"
+has_results() {
+  local count
+  count=$(curl -fsS "${API}/api/monitors/${MONITOR_ID}/results" \
+    | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
+  [ "${count}" -gt 0 ]
+}
+wait_until "a probe result" "${TIMEOUT}" has_results
 
 curl -fsS "${API}/api/monitors/${MONITOR_ID}/results" | python3 -m json.tool
 echo "     ok"
