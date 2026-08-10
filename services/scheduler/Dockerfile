@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+FROM python:3.12-slim AS base
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+WORKDIR /app
+
+# ---------- builder ----------
+FROM base AS builder
+COPY requirements/ ./requirements/
+RUN pip install --prefix=/install --no-compile -r requirements/scheduler.txt
+
+# ---------- runtime ----------
+FROM base AS runtime
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin sentinel
+
+COPY --from=builder /install /usr/local
+COPY libs/ ./libs/
+COPY services/scheduler/ ./services/scheduler/
+
+ENV PYTHONPATH=/app/libs
+
+USER sentinel
+
+# Prometheus scrape port for scheduler metrics.
+EXPOSE 9100
+
+CMD ["python", "services/scheduler/scheduler.py"]
