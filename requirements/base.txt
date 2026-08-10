@@ -1,0 +1,9 @@
+# Dependencies shared by api, scheduler and worker (i.e. sentinel_core).
+# Compatible-release pins (~=) allow patch/minor updates but block breaking
+# major bumps. Renovate will propose upgrades as PRs in Phase 2.
+
+SQLAlchemy~=2.0
+psycopg[binary]~=3.2
+redis~=5.2
+prometheus-client~=0.21
+httpx~=0.28

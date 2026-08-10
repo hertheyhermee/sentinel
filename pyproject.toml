@@ -1,0 +1,78 @@
+[project]
+name = "sentinel"
+version = "0.1.0"
+description = "Uptime and SLO monitoring platform"
+requires-python = ">=3.12"
+
+# ---------------------------------------------------------------------------
+# Ruff replaces flake8, isort, pyupgrade and more in a single fast binary.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+    "S",   # flake8-bandit (security)
+]
+ignore = [
+    "E501", # line length is enforced by the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately use assert, which bandit flags as S101.
+"tests/**" = ["S101"]
+"**/tests/**" = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["sentinel_core", "app"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["libs", "services/api"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--cov=libs/sentinel_core",
+    "--cov=services",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    # Quality gate. Raise this as coverage improves; never lower it silently.
+    "--cov-fail-under=70",
+]
+markers = [
+    "integration: requires Postgres and Redis to be running",
+]
+
+[tool.coverage.run]
+branch = true
+omit = ["*/tests/*", "*/migrations/*"]
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+no_implicit_optional = true
+check_untyped_defs = true
+mypy_path = "libs:services/api"
+exclude = ["migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["prometheus_client.*", "redis.*"]
+ignore_missing_imports = true

@@ -1,0 +1,9 @@
+failure-threshold: warning
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+
+ignored:
+  # DL3013: we intentionally do not pin pip itself; the base image controls it.
+  - DL3013
