@@ -145,4 +145,8 @@ def get_slo_report(
         total_checks=total,
         successful_checks=successful,
     )
-    return SloReportRead(**report.to_dict())
+    # model_validate(obj, from_attributes=True) reads dataclass attributes
+    # directly and is typed as accepting Any, unlike **report.to_dict() which
+    # unpacks a dict[str, object] that mypy cannot match against SloReportRead's
+    # concrete field types.
+    return SloReportRead.model_validate(report, from_attributes=True)

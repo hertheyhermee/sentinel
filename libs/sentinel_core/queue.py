@@ -16,6 +16,7 @@ movement it would not be.
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import redis
 
@@ -53,7 +54,14 @@ def dequeue_check(timeout: int) -> int | None:
     work (metrics refresh, shutdown checks) between jobs.
     """
     settings = get_settings()
-    item = get_client().blpop([settings.queue_key], timeout=timeout)
+    # redis-py's stubs type blpop as Awaitable[...] | tuple[...] | None because
+    # the same class backs both the sync and async clients. This process only
+    # ever uses the sync client, so the cast reflects runtime reality that
+    # mypy cannot infer from the shared stub.
+    item = cast(
+        "tuple[str, str] | None",
+        get_client().blpop([settings.queue_key], timeout=timeout),
+    )
     if item is None:
         return None
 
@@ -68,7 +76,7 @@ def dequeue_check(timeout: int) -> int | None:
 def queue_depth() -> int:
     """Current backlog. Exported as a metric and used as the HPA signal."""
     settings = get_settings()
-    return int(get_client().llen(settings.queue_key))
+    return cast(int, get_client().llen(settings.queue_key))
 
 
 def ping() -> bool:
