@@ -91,10 +91,40 @@ durations as if they were response times would make p99 latency improve during
 an outage, which is exactly backwards.
 **Metric labels are kept low-cardinality.** Labelling by `monitor_id` is bounded;
 labelling by URL is how teams accidentally overwhelm Prometheus.
+## CI/CD
+Every push and pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+`Lint` (ruff, mypy, hadolint) and `Unit tests` run first; `Build and scan` (one
+job per service, matrixed) and `Integration test` then run in parallel once
+those pass.
+The build job's build → scan → publish → sign sequence lives once in
+[`.github/actions/build-scan-publish`](.github/actions/build-scan-publish/action.yml)
+rather than being copy-pasted per service:
+1. Build the image and load it locally.
+2. Scan it with Trivy, blocking on CRITICAL/HIGH findings not in `.trivyignore`.
+3. Generate an SPDX SBOM — for every build, not only ones that publish.
+4. On a push to `main` only: push SHA- and `latest`-tagged images to GHCR,
+   then sign the pushed digest keylessly with cosign via GitHub OIDC. No
+   signing key exists anywhere to leak or rotate.
+[`codeql.yml`](.github/workflows/codeql.yml) runs Python static analysis on
+every PR and weekly. Dependabot ([ADR 0003](docs/adr/0003-use-dependabot-instead-of-renovate.md))
+opens PRs for pip, per-service Docker base images, and GitHub Actions updates.
+## Contributing workflow
+Changes land through a pull request from a `feat/…`, `fix/…` or `chore/…`
+branch, never a direct push to `main`
+([ADR 0004](docs/adr/0004-feature-branch-workflow-with-required-status-checks.md)).
+Branch protection on `main` requires the CI checks above to pass and the
+branch to be up to date before merging.
+```bash
+git checkout -b feat/short-description
+# make changes
+make check                     # same lint/test gate CI runs
+git push -u origin feat/short-description
+gh pr create --fill
+```
 ## Roadmap
 Built in phases, each ending with working, verifiable evidence:
 - **Phase 1** — application, Docker Compose, migrations, tests ✅
-- **Phase 2** — CI/CD: GHCR images, SBOMs, image signing, Trivy gate
+- **Phase 2** — CI/CD: GHCR images, SBOMs, image signing, Trivy gate ✅
 - **Phase 3** — Kubernetes on `kind`: manifests, then Helm, ingress, HPA
 - **Phase 4** — Terraform modules, plan-on-PR, policy scanning
 - **Phase 5** — Prometheus, Grafana, Loki, Tempo, SLO burn-rate alerts, runbooks
