@@ -34,19 +34,19 @@ jobs:
       - run: mypy libs services
 
       - name: Hadolint - api
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.4.0
         with:
           dockerfile: services/api/Dockerfile
           config: .hadolint.yaml
 
       - name: Hadolint - worker
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.4.0
         with:
           dockerfile: services/worker/Dockerfile
           config: .hadolint.yaml
 
       - name: Hadolint - scheduler
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.4.0
         with:
           dockerfile: services/scheduler/Dockerfile
           config: .hadolint.yaml
