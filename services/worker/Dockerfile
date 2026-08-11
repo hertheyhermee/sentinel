@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.12-slim AS base
+FROM python:3.14-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -21,7 +21,9 @@ COPY services/worker/ ./services/worker/
 
 ENV PYTHONPATH=/app/libs
 
-USER sentinel
+# Numeric, not the username: resolvable without an /etc/passwd lookup and the
+# same form Kubernetes securityContext.runAsUser will compare against later.
+USER 10001
 
 # Prometheus scrape port for probe metrics.
 EXPOSE 9101
