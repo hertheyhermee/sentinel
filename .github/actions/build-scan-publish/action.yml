@@ -51,7 +51,7 @@ runs:
         cache-to: type=gha,mode=max,scope=${{ inputs.service }}
 
     - name: Trivy scan (blocking on CRITICAL and HIGH)
-      uses: aquasecurity/trivy-action@0.24.0
+      uses: aquasecurity/trivy-action@v0.24.0
       with:
         image-ref: local/sentinel-${{ inputs.service }}:scan
         format: table
@@ -62,7 +62,7 @@ runs:
 
     - name: Trivy scan (SARIF, feeds the Security tab)
       if: always()
-      uses: aquasecurity/trivy-action@0.24.0
+      uses: aquasecurity/trivy-action@v0.24.0
       with:
         image-ref: local/sentinel-${{ inputs.service }}:scan
         format: sarif
