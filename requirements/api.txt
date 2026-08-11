@@ -1,6 +1,6 @@
 -r base.txt
 
-fastapi~=0.115
+fastapi~=0.141
 uvicorn[standard]~=0.34
 pydantic~=2.10
 alembic~=1.14
