@@ -21,7 +21,9 @@ COPY services/scheduler/ ./services/scheduler/
 
 ENV PYTHONPATH=/app/libs
 
-USER sentinel
+# Numeric, not the username: resolvable without an /etc/passwd lookup and the
+# same form Kubernetes securityContext.runAsUser will compare against later.
+USER 10001
 
 # Prometheus scrape port for scheduler metrics.
 EXPOSE 9100
