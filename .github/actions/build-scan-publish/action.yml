@@ -1,0 +1,120 @@
+name: Build, scan, publish and sign
+description: >
+  Builds one service image, scans it with Trivy before anything is published,
+  and only on success generates an SBOM, pushes to GHCR and signs the pushed
+  digest keylessly with cosign. Factored out of the workflow so the same
+  five-step sequence is not copy-pasted for api, worker and scheduler.
+
+inputs:
+  service:
+    description: Directory name under services/ (api, worker or scheduler)
+    required: true
+  image-name:
+    description: Full GHCR image name, e.g. ghcr.io/owner/sentinel-api
+    required: true
+  push:
+    description: "'true' to push, sign and attach an SBOM; 'false' to build and scan only"
+    required: true
+    default: "false"
+
+outputs:
+  digest:
+    description: Pushed image digest (empty when push was 'false')
+    value: ${{ steps.push.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to GHCR
+      if: inputs.push == 'true'
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    # Built and loaded locally first so Trivy can gate on it before anything
+    # is published. The GHA cache means the second (push) build below is a
+    # cache hit rather than a full rebuild.
+    - name: Build image for scanning
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: services/${{ inputs.service }}/Dockerfile
+        tags: local/sentinel-${{ inputs.service }}:scan
+        load: true
+        push: false
+        cache-from: type=gha,scope=${{ inputs.service }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.service }}
+
+    - name: Trivy scan (blocking on CRITICAL and HIGH)
+      uses: aquasecurity/trivy-action@0.24.0
+      with:
+        image-ref: local/sentinel-${{ inputs.service }}:scan
+        format: table
+        severity: CRITICAL,HIGH
+        exit-code: "1"
+        ignore-unfixed: true
+        trivyignores: .trivyignore
+
+    - name: Trivy scan (SARIF, feeds the Security tab)
+      if: always()
+      uses: aquasecurity/trivy-action@0.24.0
+      with:
+        image-ref: local/sentinel-${{ inputs.service }}:scan
+        format: sarif
+        output: trivy-${{ inputs.service }}.sarif
+        severity: CRITICAL,HIGH
+        exit-code: "0"
+        ignore-unfixed: true
+
+    - name: Upload SARIF to code scanning
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-${{ inputs.service }}.sarif
+        category: trivy-${{ inputs.service }}
+
+    # Generated for every build, not only published ones, so a PR shows what
+    # would ship before it merges.
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: local/sentinel-${{ inputs.service }}:scan
+        format: spdx-json
+        output-file: sbom-${{ inputs.service }}.spdx.json
+
+    - name: Upload SBOM artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom-${{ inputs.service }}
+        path: sbom-${{ inputs.service }}.spdx.json
+
+    - name: Push image
+      id: push
+      if: inputs.push == 'true'
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: services/${{ inputs.service }}/Dockerfile
+        tags: |
+          ${{ inputs.image-name }}:${{ github.sha }}
+          ${{ inputs.image-name }}:latest
+        push: true
+        cache-from: type=gha,scope=${{ inputs.service }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.service }}
+
+    - name: Install cosign
+      if: inputs.push == 'true'
+      uses: sigstore/cosign-installer@v3
+
+    # Keyless: cosign requests a short-lived certificate from Sigstore using
+    # this job's GitHub OIDC token (id-token: write). No private key exists
+    # anywhere, so there is nothing to leak or rotate.
+    - name: Sign the pushed digest
+      if: inputs.push == 'true'
+      shell: bash
+      run: cosign sign --yes "${{ inputs.image-name }}@${{ steps.push.outputs.digest }}"

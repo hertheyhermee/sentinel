@@ -1,0 +1,8 @@
+# Trivy vulnerability allowlist.
+#
+# Nothing is ignored by default. Every entry added here must be justified: the
+# CVE ID, an expiry date to force re-review, and a reason. An allowlist with no
+# expiry and no reason is how a scanner gate becomes theater.
+#
+# Format:
+# CVE-2024-XXXXX exp:2026-12-31 -- one-line reason this is accepted for now
