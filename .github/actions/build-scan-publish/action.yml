@@ -81,11 +81,13 @@ runs:
     # Generated for every build, not only published ones, so a PR shows what
     # would ship before it merges.
     - name: Generate SBOM
-      uses: anchore/sbom-action@v0
-      with:
-        image: local/sentinel-${{ inputs.service }}:scan
-        format: spdx-json
-        output-file: sbom-${{ inputs.service }}.spdx.json
+      shell: bash
+      run: |
+        docker run --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v "${GITHUB_WORKSPACE:-$(pwd)}:/workspace" \
+          anchore/syft:1.42.3 image "local/sentinel-${{ inputs.service }}:scan" \
+          -o spdx-json="/workspace/sbom-${{ inputs.service }}.spdx.json"
 
     - name: Upload SBOM artifact
       uses: actions/upload-artifact@v4
