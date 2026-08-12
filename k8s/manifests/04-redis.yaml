@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: sentinel
+  labels:
+    app: sentinel
+    component: redis
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+  selector:
+    app: sentinel
+    component: redis
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: sentinel
+  labels:
+    app: sentinel
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentinel
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: sentinel
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          command: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              name: redis
+          volumeMounts:
+            - mountPath: /data
+              name: redis-data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data
+  namespace: sentinel
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard

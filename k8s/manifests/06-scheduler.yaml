@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-scheduler
+  namespace: sentinel
+  labels:
+    app: sentinel
+    component: scheduler
+spec:
+  ports:
+    - port: 9100
+      targetPort: 9100
+      protocol: TCP
+      name: metrics
+  selector:
+    app: sentinel
+    component: scheduler
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-scheduler
+  namespace: sentinel
+  labels:
+    app: sentinel
+    component: scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentinel
+      component: scheduler
+  template:
+    metadata:
+      labels:
+        app: sentinel
+        component: scheduler
+    spec:
+      containers:
+        - name: sentinel-scheduler
+          image: ghcr.io/hertheyhermee/sentinel-scheduler:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9100
+              name: metrics
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: REDIS_URL
+            - name: QUEUE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: QUEUE_KEY
+            - name: PROBE_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: PROBE_TIMEOUT_SECONDS
+            - name: SCHEDULER_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: SCHEDULER_INTERVAL_SECONDS
+            - name: WORKER_BLOCK_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: WORKER_BLOCK_TIMEOUT_SECONDS
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: LOG_LEVEL
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9100
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9100
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            runAsUser: 10001
+            runAsNonRoot: true

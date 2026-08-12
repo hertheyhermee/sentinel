@@ -91,6 +91,26 @@ ps: ## Show service status
 scale: ## Run 3 probe workers to demonstrate horizontal scaling
 	$(COMPOSE) up -d --scale worker=3
 
+.PHONY: kind-create
+kind-create: ## Create a local kind cluster for Kubernetes development
+	kind create cluster --name sentinel --config k8s/kind-config.yaml
+
+.PHONY: kind-load
+kind-load: ## Build and load local service images into kind
+	docker build -t ghcr.io/hertheyhermee/sentinel-api:latest -f services/api/Dockerfile .
+	docker build -t ghcr.io/hertheyhermee/sentinel-scheduler:latest -f services/scheduler/Dockerfile .
+	docker build -t ghcr.io/hertheyhermee/sentinel-worker:latest -f services/worker/Dockerfile .
+	kind load docker-image ghcr.io/hertheyhermee/sentinel-api:latest --name sentinel
+	kind load docker-image ghcr.io/hertheyhermee/sentinel-scheduler:latest --name sentinel
+	kind load docker-image ghcr.io/hertheyhermee/sentinel-worker:latest --name sentinel
+
+.PHONY: kind-apply
+kind-apply: ## Apply the local kind Kubernetes manifests
+	kubectl apply -f k8s/manifests/
+
+.PHONY: kind-up
+kind-up: kind-create kind-load kind-apply ## Create the kind cluster, load images and apply manifests
+
 # ---------------------------------------------------------------------------
 # Database
 # ---------------------------------------------------------------------------

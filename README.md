@@ -129,6 +129,11 @@ Built in phases, each ending with working, verifiable evidence:
 - **Phase 4** — Terraform modules, plan-on-PR, policy scanning
 - **Phase 5** — Prometheus, Grafana, Loki, Tempo, SLO burn-rate alerts, runbooks
 - **Phase 6** — Argo CD GitOps on k3s, canary rollouts, backup/restore drills
+
+## Kubernetes with kind
+The `k8s/` directory contains raw Kubernetes manifests for local `kind` development.
+Use `make kind-up` to create a local cluster, load the built service images, and apply the manifests.
+
 ## Repository layout
 ```
 libs/sentinel_core/   shared domain code (models, queue, probe, SLO maths)

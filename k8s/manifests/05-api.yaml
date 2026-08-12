@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-api
+  namespace: sentinel
+  labels:
+    app: sentinel
+    component: api
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: sentinel
+    component: api
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-api
+  namespace: sentinel
+  labels:
+    app: sentinel
+    component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentinel
+      component: api
+  template:
+    metadata:
+      labels:
+        app: sentinel
+        component: api
+    spec:
+      containers:
+        - name: sentinel-api
+          image: ghcr.io/hertheyhermee/sentinel-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: REDIS_URL
+            - name: QUEUE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: QUEUE_KEY
+            - name: PROBE_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: PROBE_TIMEOUT_SECONDS
+            - name: SCHEDULER_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: SCHEDULER_INTERVAL_SECONDS
+            - name: WORKER_BLOCK_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: WORKER_BLOCK_TIMEOUT_SECONDS
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: LOG_LEVEL
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            runAsUser: 10001
+            runAsNonRoot: true
