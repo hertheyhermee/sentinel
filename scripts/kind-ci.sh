@@ -20,9 +20,11 @@ echo "Creating kind cluster (if missing)..."
 kind create cluster --name "$CLUSTER_NAME" --config "$ROOT_DIR/k8s/kind-config.yaml" || true
 
 echo "Building service images..."
-docker build -t sentinel-api:local -f "$ROOT_DIR/services/api/Dockerfile" "$ROOT_DIR/services/api"
-docker build -t sentinel-scheduler:local -f "$ROOT_DIR/services/scheduler/Dockerfile" "$ROOT_DIR/services/scheduler"
-docker build -t sentinel-worker:local -f "$ROOT_DIR/services/worker/Dockerfile" "$ROOT_DIR/services/worker"
+# Use the repository root as the build context so Dockerfile COPY lines that
+# reference paths like `services/api/` resolve correctly inside the context.
+docker build -t sentinel-api:local -f "$ROOT_DIR/services/api/Dockerfile" "$ROOT_DIR"
+docker build -t sentinel-scheduler:local -f "$ROOT_DIR/services/scheduler/Dockerfile" "$ROOT_DIR"
+docker build -t sentinel-worker:local -f "$ROOT_DIR/services/worker/Dockerfile" "$ROOT_DIR"
 
 echo "Loading images into kind cluster..."
 kind load docker-image --name "$CLUSTER_NAME" sentinel-api:local
