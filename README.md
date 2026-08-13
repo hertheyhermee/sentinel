@@ -134,6 +134,17 @@ Built in phases, each ending with working, verifiable evidence:
 The `k8s/` directory contains raw Kubernetes manifests for local `kind` development.
 Use `make kind-up` to create a local cluster, load the built service images, and apply the manifests.
 
+## Helm packaging
+The `charts/sentinel/` chart packages the same deployment model as the raw manifests so the platform can be installed as a repeatable release.
+
+```bash
+helm lint ./charts/sentinel
+helm template sentinel ./charts/sentinel
+helm install sentinel ./charts/sentinel --namespace sentinel --create-namespace
+```
+
+This keeps the app deployable both as raw Kubernetes YAML and as a parameterized Helm release.
+
 ## Repository layout
 ```
 libs/sentinel_core/   shared domain code (models, queue, probe, SLO maths)
