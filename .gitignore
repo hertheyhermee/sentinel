@@ -29,6 +29,7 @@ dist/
 # ---- Terraform ----
 .terraform/
 .terraform.lock.hcl
+!.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfvars
