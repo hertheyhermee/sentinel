@@ -86,7 +86,7 @@ runs:
         docker run --rm \
           -v /var/run/docker.sock:/var/run/docker.sock \
           -v "${GITHUB_WORKSPACE:-$(pwd)}:/workspace" \
-          anchore/syft:v1.51.0 image "local/sentinel-${{ inputs.service }}:scan" \
+          anchore/syft:v1.51.0 "local/sentinel-${{ inputs.service }}:scan" \
           -o spdx-json="/workspace/sbom-${{ inputs.service }}.spdx.json"
 
     - name: Upload SBOM artifact
