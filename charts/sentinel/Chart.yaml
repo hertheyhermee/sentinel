@@ -1,0 +1,7 @@
+apiVersion: v2
+name: sentinel
+description: Helm chart for the Sentinel monitoring platform
+version: 0.1.0
+appVersion: "0.1.0"
+type: application
+icon: https://helm.sh/img/helm.svg
