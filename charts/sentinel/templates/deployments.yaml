@@ -1,0 +1,470 @@
+{{- $images := .Values.images -}}
+{{- $config := .Values.config -}}
+{{- $resources := .Values.resources -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-api
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: api
+spec:
+  selector:
+    app: {{ .Values.appName }}
+    component: api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-api
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: api
+spec:
+  replicas: {{ .Values.replicaCounts.api }}
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+      component: api
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+        component: api
+    spec:
+      containers:
+        - name: sentinel-api
+          image: {{ $images.api }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: REDIS_URL
+            - name: QUEUE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: QUEUE_KEY
+            - name: PROBE_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: PROBE_TIMEOUT_SECONDS
+            - name: SCHEDULER_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: SCHEDULER_INTERVAL_SECONDS
+            - name: WORKER_BLOCK_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: WORKER_BLOCK_TIMEOUT_SECONDS
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: LOG_LEVEL
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: {{ $resources.api.requests.cpu }}
+              memory: {{ $resources.api.requests.memory }}
+            limits:
+              cpu: {{ $resources.api.limits.cpu }}
+              memory: {{ $resources.api.limits.memory }}
+          securityContext:
+            runAsUser: 10001
+            runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-scheduler
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: scheduler
+spec:
+  selector:
+    app: {{ .Values.appName }}
+    component: scheduler
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-scheduler
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: scheduler
+spec:
+  replicas: {{ .Values.replicaCounts.scheduler }}
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+      component: scheduler
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+        component: scheduler
+    spec:
+      containers:
+        - name: sentinel-scheduler
+          image: {{ $images.scheduler }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9100
+              name: metrics
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: REDIS_URL
+            - name: QUEUE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: QUEUE_KEY
+            - name: PROBE_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: PROBE_TIMEOUT_SECONDS
+            - name: SCHEDULER_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: SCHEDULER_INTERVAL_SECONDS
+            - name: WORKER_BLOCK_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: WORKER_BLOCK_TIMEOUT_SECONDS
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: LOG_LEVEL
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9100
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9100
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: {{ $resources.scheduler.requests.cpu }}
+              memory: {{ $resources.scheduler.requests.memory }}
+            limits:
+              cpu: {{ $resources.scheduler.limits.cpu }}
+              memory: {{ $resources.scheduler.limits.memory }}
+          securityContext:
+            runAsUser: 10001
+            runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-worker
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: worker
+spec:
+  selector:
+    app: {{ .Values.appName }}
+    component: worker
+  ports:
+    - name: metrics
+      port: 9101
+      targetPort: 9101
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-worker
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: worker
+spec:
+  replicas: {{ .Values.replicaCounts.worker }}
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+        component: worker
+    spec:
+      containers:
+        - name: sentinel-worker
+          image: {{ $images.worker }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9101
+              name: metrics
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: REDIS_URL
+            - name: QUEUE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: QUEUE_KEY
+            - name: PROBE_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: PROBE_TIMEOUT_SECONDS
+            - name: SCHEDULER_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: SCHEDULER_INTERVAL_SECONDS
+            - name: WORKER_BLOCK_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: WORKER_BLOCK_TIMEOUT_SECONDS
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-config
+                  key: LOG_LEVEL
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9101
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9101
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: {{ $resources.worker.requests.cpu }}
+              memory: {{ $resources.worker.requests.memory }}
+            limits:
+              cpu: {{ $resources.worker.limits.cpu }}
+              memory: {{ $resources.worker.limits.memory }}
+          securityContext:
+            runAsUser: 10001
+            runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: postgres
+spec:
+  selector:
+    app: {{ .Values.appName }}
+    component: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+        component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.images.postgres }}
+          ports:
+            - containerPort: 5432
+              name: postgresql
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: sentinel-secrets
+                  key: POSTGRES_DB
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.postgres.pvcSize }}
+  storageClassName: {{ .Values.postgres.storageClassName }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: redis
+spec:
+  selector:
+    app: {{ .Values.appName }}
+    component: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.images.redis }}
+          command: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              name: redis
+          volumeMounts:
+            - mountPath: /data
+              name: redis-data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.redis.pvcSize }}
+  storageClassName: {{ .Values.redis.storageClassName }}
