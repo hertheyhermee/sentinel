@@ -1,0 +1,31 @@
+name: Kind Integration
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+
+jobs:
+  kind-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Install kind and kubectl
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl
+          curl -sSLo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.20.0/kind
+          sudo chmod +x /usr/local/bin/kind
+          KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+          curl -Lo kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+      - name: Run Kind CI script
+        env:
+          CI: true
+        run: |
+          bash ./scripts/kind-ci.sh sentinel-ci
