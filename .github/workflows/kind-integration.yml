@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ca-certificates curl
-          curl -sSLo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.20.0/kind
+          curl -sSL -o /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.20.0/kind
           sudo chmod +x /usr/local/bin/kind
           KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
           curl -Lo kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
