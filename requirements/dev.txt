@@ -1,7 +1,7 @@
 -r api.txt
 
 pytest~=9.1
-pytest-cov~=6.0
+pytest-cov~=7.1
 ruff~=0.16
 mypy~=2.3
 types-requests~=2.32
