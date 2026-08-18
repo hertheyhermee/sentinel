@@ -1,6 +1,6 @@
 -r base.txt
 
 fastapi~=0.141
-uvicorn[standard]~=0.34
+uvicorn[standard]~=0.52
 pydantic~=2.10
 alembic~=1.19
