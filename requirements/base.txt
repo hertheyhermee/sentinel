@@ -3,7 +3,7 @@
 # major bumps. Renovate will propose upgrades as PRs in Phase 2.
 
 SQLAlchemy~=2.0
-psycopg[binary]~=3.2
+psycopg[binary]~=3.3
 redis~=5.2
 prometheus-client~=0.26
 httpx~=0.28
