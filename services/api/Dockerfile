@@ -4,7 +4,7 @@
 # and only the resulting site-packages are copied into the runtime stage, so no
 # compilers or pip caches ship in the final image.
 
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.14-slim-bookworm AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
